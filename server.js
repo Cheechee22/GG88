@@ -22,7 +22,7 @@ const CATEGORIES = ['Arcade', 'Racing', 'Sports', 'Indie', 'Horror', 'Simulation
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const ALLOWED_EXT = new Set(['.zip', '.rar', '.7z', '.exe', '.msi', '.dmg', '.tar', '.gz', '.apk']);
+const ALLOWED_EXT = new Set(['.zip', '.rar', '.7z', '.exe', '.msi', '.dmg', '.tar', '.gz', '.apk', '.torrent']);
 
 const upload = multer({
   storage: multer.diskStorage({
