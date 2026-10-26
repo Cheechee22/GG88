@@ -16,6 +16,7 @@ db.exec(`
     size_bytes INTEGER,
     filename TEXT NOT NULL,
     original_name TEXT NOT NULL,
+    download_url TEXT,
     downloads INTEGER DEFAULT 0,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
   );
