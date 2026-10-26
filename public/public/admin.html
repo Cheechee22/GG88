@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>GG88 Admin</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="logo" onclick="location.href='/'">GG<span>88</span></div>
+    <div style="flex:1"></div>
+    <a href="/" class="admin-link">← Back to site</a>
+  </header>
+
+  <main>
+    <section id="loginBox" class="panel">
+      <h2>Admin Login</h2>
+      <input id="username" placeholder="Username" />
+      <input id="password" type="password" placeholder="Password" />
+      <button id="loginBtn" class="btn" style="margin-top:.8rem">Login</button>
+      <p id="loginMsg" class="error"></p>
+    </section>
+
+    <section id="adminBox" class="panel" style="display:none; max-width:900px">
+      <h2>Upload a Game</h2>
+      <form id="uploadForm">
+        <input name="title" placeholder="Title *" required />
+        <textarea name="description" placeholder="Description *" required></textarea>
+        <select name="category" required>
+          <option value="">— Choose a category * —</option>
+          <option>Arcade</option><option>Racing</option><option>Sports</option>
+          <option>Indie</option><option>Horror</option><option>Simulation</option>
+          <option>RPG</option>
+        </select>
+        <input name="subcategory" placeholder="Sub-category (e.g. Platformer, FPS, Open World)" />
+        <input name="platform" placeholder="Platform (e.g. Windows)" />
+        <input name="version" placeholder="Version (e.g. 1.0.2)" />
+        <input type="file" name="file" required />
+        <button type="submit" class="btn">Upload</button>
+      </form>
+      <p id="uploadMsg"></p>
+
+      <h2 style="margin-top:1.5rem">Existing Games</h2>
+      <table id="gameTable">
+        <thead><tr><th>Title</th><th>Category</th><th>Sub</th><th>Downloads</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <button id="logoutBtn" class="btn secondary" style="margin-top:1rem">Logout</button>
+    </section>
+  </main>
+
+  <script>
+    const loginBox = document.getElementById('loginBox');
+    const adminBox = document.getElementById('adminBox');
+    const loginMsg = document.getElementById('loginMsg');
+    const uploadMsg = document.getElementById('uploadMsg');
+
+    const token = () => localStorage.getItem('adminToken');
+    const setToken = t => localStorage.setItem('adminToken', t);
+    const clearToken = () => localStorage.removeItem('adminToken');
+
+    async function login() {
+      loginMsg.textContent = '';
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: document.getElementById('username').value,
+          password: document.getElementById('password').value
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) { loginMsg.textContent = data.error || 'Login failed'; return; }
+      setToken(data.token);
+      showAdmin();
+    }
+
+    function showAdmin() {
+      if (!token()) { loginBox.style.display = 'block'; adminBox.style.display = 'none'; return; }
+      loginBox.style.display = 'none';
+      adminBox.style.display = 'block';
+      loadGames();
+    }
+
+    async function loadGames() {
+      const res = await fetch('/api/games');
+      const games = await res.json();
+      const tbody = document.querySelector('#gameTable tbody');
+      tbody.innerHTML = '';
+      games.forEach(g => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${g.title}</td>
+          <td>${g.category || '—'}</td>
+          <td>${g.subcategory || '—'}</td>
+          <td>${g.downloads}</td>
+          <td><button data-id="${g.id}" class="btn small danger">Delete</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+      tbody.querySelectorAll('button[data-id]').forEach(btn => {
+        btn.onclick = async () => {
+          if (!confirm('Delete this game and its file?')) return;
+          await fetch('/api/admin/games/' + btn.dataset.id, {
+            method: 'DELETE',
+            headers: { Authorization: 'Bearer ' + token() }
+          });
+          loadGames();
+        };
+      });
+    }
+
+    document.getElementById('loginBtn').onclick = login;
+
+    document.getElementById('uploadForm').onsubmit = async e => {
+      e.preventDefault();
+      uploadMsg.textContent = 'Uploading...';
+      uploadMsg.style.color = 'var(--violet)';
+      const form = new FormData(e.target);
+      const res = await fetch('/api/admin/games', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token() },
+        body: form
+      });
+      const data = await res.json();
+      if (res.ok) {
+        uploadMsg.textContent = '✅ Uploaded!';
+        uploadMsg.style.color = '#1a8a4a';
+        e.target.reset();
+        loadGames();
+      } else {
+        uploadMsg.textContent = '❌ ' + (data.error || 'Error');
+        uploadMsg.style.color = '#d13a3a';
+      }
+    };
+
+    document.getElementById('logoutBtn').onclick = () => { clearToken(); showAdmin(); };
+    showAdmin();
+  </script>
+</body>
+</html>
