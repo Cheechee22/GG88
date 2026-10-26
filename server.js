@@ -132,6 +132,8 @@ app.get('/api/games/:id/download', (req, res) => {
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File missing' });
   res.download(filePath, game.original_name);
 });
+});
+
 app.post('/api/admin/games', requireAdmin, upload.fields([
   { name: 'file', maxCount: 1 }, 
   { name: 'image', maxCount: 1 },
@@ -152,7 +154,6 @@ app.post('/api/admin/games', requireAdmin, upload.fields([
       return res.status(400).json({ error: 'title, description, category, and either a file or link are required' });
     }
     
-    // Auto-migrate DB for new columns
     const cols = db.prepare("PRAGMA table_info(games)").all().map(c => c.name);
     if (!cols.includes('image_url')) db.exec("ALTER TABLE games ADD COLUMN image_url TEXT");
     if (!cols.includes('download_url')) db.exec("ALTER TABLE games ADD COLUMN download_url TEXT");
@@ -164,7 +165,6 @@ app.post('/api/admin/games', requireAdmin, upload.fields([
     const originalName = gameFile ? gameFile.originalname : title;
     const sizeBytes = gameFile ? gameFile.size : 0;
 
-    // Save screenshots as a JSON string array
     const ssArray = [];
     if (ss1) ssArray.push(`/api/image/${ss1.filename}`);
     if (ss2) ssArray.push(`/api/image/${ss2.filename}`);
@@ -182,29 +182,6 @@ app.post('/api/admin/games', requireAdmin, upload.fields([
     res.status(500).json({ error: err.message });
   }
 });
-    
-    // Auto-migrate DB to add new columns if they don't exist
-    const cols = db.prepare("PRAGMA table_info(games)").all().map(c => c.name);
-    if (!cols.includes('image_url')) db.exec("ALTER TABLE games ADD COLUMN image_url TEXT");
-    if (!cols.includes('download_url')) db.exec("ALTER TABLE games ADD COLUMN download_url TEXT");
-
-    const imageUrl = imgFile ? `/api/image/${imgFile.filename}` : null;
-    const filename = gameFile ? gameFile.filename : 'link';
-    const originalName = gameFile ? gameFile.originalname : title;
-    const sizeBytes = gameFile ? gameFile.size : 0;
-
-    const info = db.prepare(`
-      INSERT INTO games (title, description, category, subcategory, platform, version, size_bytes, filename, original_name, image_url, download_url)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(title, description, category, subcategory, platform, version,
-           sizeBytes, filename, originalName, imageUrl, download_url);
-           
-    res.json({ id: info.lastInsertRowid, message: 'Game uploaded' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 app.delete('/api/admin/games/:id', requireAdmin, (req, res) => {
   const game = db.prepare('SELECT * FROM games WHERE id = ?').get(req.params.id);
   if (!game) return res.status(404).json({ error: 'Not found' });
