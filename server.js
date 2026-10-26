@@ -116,35 +116,52 @@ app.get('/api/games/:id', (req, res) => {
   delete row.filename; delete row.original_name;
   res.json(row);
 });
-
 app.get('/api/games/:id/download', (req, res) => {
   const game = db.prepare('SELECT * FROM games WHERE id = ?').get(req.params.id);
   if (!game) return res.status(404).json({ error: 'Not found' });
+  
+  db.prepare('UPDATE games SET downloads = downloads + 1 WHERE id = ?').run(game.id);
+
+  // If it's a link, redirect them to the external site
+  if (game.download_url) {
+    return res.redirect(game.download_url);
+  }
+
+  // If it's an uploaded file, download it normally
   const filePath = path.join(UPLOAD_DIR, game.filename);
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File missing' });
-  db.prepare('UPDATE games SET downloads = downloads + 1 WHERE id = ?').run(game.id);
   res.download(filePath, game.original_name);
 });
-
-app.post('/api/admin/games', requireAdmin, upload.single('file'), (req, res) => {
+app.post('/api/admin/games', requireAdmin, upload.fields([{ name: 'file', maxCount: 1 }, { name: 'image', maxCount: 1 }]), (req, res) => {
   try {
-    const { title, description, category, subcategory = '', platform = '', version = '' } = req.body;
-    if (!title || !description || !category || !req.file) {
-      if (req.file) fs.unlinkSync(req.file.path);
-      return res.status(400).json({ error: 'title, description, category, file are required' });
+    const { title, description, category, subcategory = '', platform = '', version = '', download_url = '' } = req.body;
+    
+    // Check if user uploaded a file OR provided a link
+    const gameFile = req.files && req.files['file'] ? req.files['file'][0] : null;
+    const imgFile = req.files && req.files['image'] ? req.files['image'][0] : null;
+
+    if (!title || !description || !category || (!gameFile && !download_url)) {
+      return res.status(400).json({ error: 'title, description, category, and either a file or link are required' });
     }
-    if (!CATEGORIES.includes(category)) {
-      fs.unlinkSync(req.file.path);
-      return res.status(400).json({ error: 'Invalid category' });
-    }
+    
+    // Auto-migrate DB to add new columns if they don't exist
+    const cols = db.prepare("PRAGMA table_info(games)").all().map(c => c.name);
+    if (!cols.includes('image_url')) db.exec("ALTER TABLE games ADD COLUMN image_url TEXT");
+    if (!cols.includes('download_url')) db.exec("ALTER TABLE games ADD COLUMN download_url TEXT");
+
+    const imageUrl = imgFile ? `/api/image/${imgFile.filename}` : null;
+    const filename = gameFile ? gameFile.filename : null;
+    const originalName = gameFile ? gameFile.originalname : title;
+    const sizeBytes = gameFile ? gameFile.size : 0;
+
     const info = db.prepare(`
-      INSERT INTO games (title, description, category, subcategory, platform, version, size_bytes, filename, original_name)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO games (title, description, category, subcategory, platform, version, size_bytes, filename, original_name, image_url, download_url)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(title, description, category, subcategory, platform, version,
-           req.file.size, req.file.filename, req.file.originalname);
+           sizeBytes, filename, originalName, imageUrl, download_url);
+           
     res.json({ id: info.lastInsertRowid, message: 'Game uploaded' });
   } catch (err) {
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     res.status(500).json({ error: err.message });
   }
 });
