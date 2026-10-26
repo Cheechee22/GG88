@@ -132,17 +132,56 @@ app.get('/api/games/:id/download', (req, res) => {
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File missing' });
   res.download(filePath, game.original_name);
 });
-app.post('/api/admin/games', requireAdmin, upload.fields([{ name: 'file', maxCount: 1 }, { name: 'image', maxCount: 1 }]), (req, res) => {
+app.post('/api/admin/games', requireAdmin, upload.fields([
+  { name: 'file', maxCount: 1 }, 
+  { name: 'image', maxCount: 1 },
+  { name: 'screenshot1', maxCount: 1 },
+  { name: 'screenshot2', maxCount: 1 },
+  { name: 'screenshot3', maxCount: 1 }
+]), (req, res) => {
   try {
-    const { title, description, category, subcategory = '', platform = '', version = '', download_url = '' } = req.body;
+    const { title, description, category, subcategory = '', platform = '', version = '', download_url = '', installation = '' } = req.body;
     
-    // Check if user uploaded a file OR provided a link
     const gameFile = req.files && req.files['file'] ? req.files['file'][0] : null;
     const imgFile = req.files && req.files['image'] ? req.files['image'][0] : null;
+    const ss1 = req.files && req.files['screenshot1'] ? req.files['screenshot1'][0] : null;
+    const ss2 = req.files && req.files['screenshot2'] ? req.files['screenshot2'][0] : null;
+    const ss3 = req.files && req.files['screenshot3'] ? req.files['screenshot3'][0] : null;
 
     if (!title || !description || !category || (!gameFile && !download_url)) {
       return res.status(400).json({ error: 'title, description, category, and either a file or link are required' });
     }
+    
+    // Auto-migrate DB for new columns
+    const cols = db.prepare("PRAGMA table_info(games)").all().map(c => c.name);
+    if (!cols.includes('image_url')) db.exec("ALTER TABLE games ADD COLUMN image_url TEXT");
+    if (!cols.includes('download_url')) db.exec("ALTER TABLE games ADD COLUMN download_url TEXT");
+    if (!cols.includes('installation')) db.exec("ALTER TABLE games ADD COLUMN installation TEXT");
+    if (!cols.includes('screenshots')) db.exec("ALTER TABLE games ADD COLUMN screenshots TEXT");
+
+    const imageUrl = imgFile ? `/api/image/${imgFile.filename}` : null;
+    const filename = gameFile ? gameFile.filename : 'link';
+    const originalName = gameFile ? gameFile.originalname : title;
+    const sizeBytes = gameFile ? gameFile.size : 0;
+
+    // Save screenshots as a JSON string array
+    const ssArray = [];
+    if (ss1) ssArray.push(`/api/image/${ss1.filename}`);
+    if (ss2) ssArray.push(`/api/image/${ss2.filename}`);
+    if (ss3) ssArray.push(`/api/image/${ss3.filename}`);
+    const screenshotsJson = JSON.stringify(ssArray);
+
+    const info = db.prepare(`
+      INSERT INTO games (title, description, category, subcategory, platform, version, size_bytes, filename, original_name, image_url, download_url, installation, screenshots)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(title, description, category, subcategory, platform, version,
+           sizeBytes, filename, originalName, imageUrl, download_url, installation, screenshotsJson);
+           
+    res.json({ id: info.lastInsertRowid, message: 'Game uploaded' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
     
     // Auto-migrate DB to add new columns if they don't exist
     const cols = db.prepare("PRAGMA table_info(games)").all().map(c => c.name);
