@@ -36,7 +36,11 @@
         <input name="subcategory" placeholder="Sub-category (e.g. Platformer, FPS, Open World)" />
         <input name="platform" placeholder="Platform (e.g. Windows)" />
         <input name="version" placeholder="Version (e.g. 1.0.2)" />
-        <input type="file" name="file" required />
+        <p style="font-size: 0.85rem; color: #7c5cff; margin-bottom: 4px;">Upload a file (Max 2GB):</p>
+<input type="file" name="file" />
+
+<p style="font-size: 0.85rem; color: #7c5cff; margin-top: 8px; margin-bottom: 4px;">OR paste a Direct Download Link (e.g., Google Drive, Mega):</p>
+<input name="download_url" placeholder="https://..." />
         <button type="submit" class="btn">Upload</button>
       </form>
       <p id="uploadMsg"></p>
