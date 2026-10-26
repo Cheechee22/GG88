@@ -132,8 +132,6 @@ app.get('/api/games/:id/download', (req, res) => {
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File missing' });
   res.download(filePath, game.original_name);
 });
-});
-
 app.post('/api/admin/games', requireAdmin, upload.fields([
   { name: 'file', maxCount: 1 }, 
   { name: 'image', maxCount: 1 },
