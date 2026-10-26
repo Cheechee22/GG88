@@ -25,6 +25,36 @@
     <section id="adminBox" class="panel" style="display:none; max-width:900px">
       <h2>Upload a Game</h2>
       <form id="uploadForm">
+  <input name="title" placeholder="Title *" required />
+  <textarea name="description" placeholder="Description *" required></textarea>
+  <select name="category" required>
+    <option value="">— Choose a category * —</option>
+    <option>Arcade</option><option>Racing</option><option>Sports</option>
+    <option>Indie</option><option>Horror</option><option>Simulation</option>
+    <option>RPG</option>
+  </select>
+  <input name="subcategory" placeholder="Sub-category (e.g. Platformer, FPS)" />
+  <input name="platform" placeholder="Platform (e.g. Windows)" />
+  <input name="version" placeholder="Version (e.g. 1.0.2)" />
+  
+  <textarea name="installation" placeholder="Installation Instructions (e.g. Extract and run setup.exe)"></textarea>
+
+  <p style="font-size: 0.85rem; color: #7c5cff; margin-top: 8px; margin-bottom: 4px;">Cover Image (Shows on homepage):</p>
+  <input type="file" name="image" accept="image/*" />
+
+  <p style="font-size: 0.85rem; color: #7c5cff; margin-top: 8px; margin-bottom: 4px;">Screenshots (Up to 3):</p>
+  <input type="file" name="screenshot1" accept="image/*" />
+  <input type="file" name="screenshot2" accept="image/*" />
+  <input type="file" name="screenshot3" accept="image/*" />
+
+  <p style="font-size: 0.85rem; color: #7c5cff; margin-top: 8px; margin-bottom: 4px;">Upload Game File (Max 2GB):</p>
+  <input type="file" name="file" />
+  
+  <p style="font-size: 0.85rem; color: #7c5cff; margin-top: 8px; margin-bottom: 4px;">OR paste a Direct Download Link:</p>
+  <input name="download_url" placeholder="https://..." />
+
+  <button type="submit" class="btn" style="margin-top: 10px;">Upload</button>
+      </form>
         <input name="title" placeholder="Title *" required />
         <textarea name="description" placeholder="Description *" required></textarea>
         <select name="category" required>
