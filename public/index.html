@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>GG88 — Download Games</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="logo" onclick="location.href='/'">GG<span>88</span></div>
+
+    <div class="search-wrap">
+      <input id="search" placeholder="Search every game on GG88..." autocomplete="off" />
+      <div id="searchResults" class="search-results"></div>
+    </div>
+
+    <a href="/admin.html" class="admin-link">Admin</a>
+  </header>
+
+  <nav class="cat-nav" id="catNav"></nav>
+
+  <main>
+    <h1 class="page-title" id="pageTitle">All Games</h1>
+    <p class="page-sub" id="pageSub">Browse everything uploaded on GG88.</p>
+
+    <div id="subRail" class="sub-rail"></div>
+    <div id="games" class="grid"></div>
+    <p id="empty" class="empty" style="display:none">No games found.</p>
+  </main>
+
+  <script>
+    const CATS = ['Arcade', 'Racing', 'Sports', 'Indie', 'Horror', 'Simulation', 'RPG'];
+    const gamesEl = document.getElementById('games');
+    const emptyEl = document.getElementById('empty');
+    const subRailEl = document.getElementById('subRail');
+    const catNavEl = document.getElementById('catNav');
+    const titleEl = document.getElementById('pageTitle');
+    const subEl = document.getElementById('pageSub');
+    const searchEl = document.getElementById('search');
+    const resultsEl = document.getElementById('searchResults');
+
+    let currentCat = null;
+    let currentSub = null;
+    let catData = [];
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c =>
+        ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    }
+    function fmtSize(b) {
+      if (!b) return '—';
+      const mb = b / (1024 * 1024);
+      return mb > 1024 ? (mb / 1024).toFixed(2) + ' GB' : mb.toFixed(1) + ' MB';
+    }
+
+    function renderCard(g) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <h3>${esc(g.title)}</h3>
+        <div>
+          <span class="tag">${esc(g.category || 'Game')}</span>
+          ${g.subcategory ? `<span class="tag">${esc(g.subcategory)}</span>` : ''}
+        </div>
+        <p class="meta">${esc(g.platform || 'PC')}${g.version ? ' · v' + esc(g.version) : ''}</p>
+        <p class="desc">${esc(g.description)}</p>
+        <p class="size">${fmtSize(g.size_bytes)} · ${g.downloads} downloads</p>
+        <a class="btn" href="/api/games/${g.id}/download">⬇ Download</a>
+      `;
+      return card;
+    }
+
+    function renderGames(list) {
+      gamesEl.innerHTML = '';
+      emptyEl.style.display = list.length ? 'none' : 'block';
+      list.forEach(g => gamesEl.appendChild(renderCard(g)));
+    }
+
+    function renderCatNav() {
+      catNavEl.innerHTML = '';
+      const allChip = document.createElement('div');
+      allChip.className = 'cat-chip' + (currentCat === null ? ' active' : '');
+      allChip.textContent = 'All';
+      allChip.onclick = () => selectCategory(null);
+      catNavEl.appendChild(allChip);
+
+      CATS.forEach(c => {
+        const chip = document.createElement('div');
+        chip.className = 'cat-chip' + (currentCat === c ? ' active' : '');
+        const info = catData.find(x => x.name === c);
+        chip.textContent = c + (info && info.total ? ` (${info.total})` : '');
+        chip.onclick = () => selectCategory(c);
+        catNavEl.appendChild(chip);
+      });
+    }
+
+    function renderSubRail() {
+      subRailEl.innerHTML = '';
+      if (!currentCat) return;
+      const info = catData.find(x => x.name === currentCat);
+      if (!info) return;
+
+      const allPill = document.createElement('div');
+      allPill.className = 'sub-pill' + (currentSub === null ? ' active' : '');
+      allPill.textContent = `All ${currentCat}`;
+      allPill.onclick = () => selectSub(null);
+      subRailEl.appendChild(allPill);
+
+      Object.entries(info.subcategories).forEach(([sub, count]) => {
+        const pill = document.createElement('div');
+        pill.className = 'sub-pill' + (currentSub === sub ? ' active' : '');
+        pill.innerHTML = `${esc(sub)} <span class="count">${count}</span>`;
+        pill.onclick = () => selectSub(sub);
+        subRailEl.appendChild(pill);
+      });
+    }
+
+    async function loadGames() {
+      const params = new URLSearchParams();
+      if (currentCat) params.set('category', currentCat);
+      if (currentSub) params.set('subcategory', currentSub);
+      const res = await fetch('/api/games?' + params.toString());
+      const list = await res.json();
+      renderGames(list);
+
+      if (currentCat) {
+        titleEl.textContent = currentCat + (currentSub ? ' › ' + currentSub : '');
+        subEl.textContent = 'Explore ' + (currentSub || currentCat) + ' games on GG88.';
+      } else {
+        titleEl.textContent = 'All Games';
+        subEl.textContent = 'Browse everything uploaded on GG88.';
+      }
+    }
+
+    function selectCategory(cat) {
+      currentCat = cat;
+      currentSub = null;
+      renderCatNav();
+      renderSubRail();
+      loadGames();
+      history.replaceState(null, '', cat ? `/?cat=${encodeURIComponent(cat)}` : '/');
+    }
+    function selectSub(sub) { currentSub = sub; renderSubRail(); loadGames(); }
+
+    let searchTimer;
+    searchEl.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      const q = searchEl.value.trim();
+      if (!q) { resultsEl.classList.remove('show'); resultsEl.innerHTML = ''; return; }
+      searchTimer = setTimeout(async () => {
+        const res = await fetch('/api/search?q=' + encodeURIComponent(q));
+        const list = await res.json();
+        renderSearchResults(list, q);
+      }, 180);
+    });
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.search-wrap')) resultsEl.classList.remove('show');
+    });
+
+    function renderSearchResults(list, q) {
+      resultsEl.innerHTML = '';
+      if (!list.length) {
+        resultsEl.innerHTML = `<div class="sr-item"><div><div class="t">No results for "${esc(q)}"</div><div class="c">Try a different word.</div></div></div>`;
+        resultsEl.classList.add('show');
+        return;
+      }
+      list.slice(0, 20).forEach(g => {
+        const row = document.createElement('div');
+        row.className = 'sr-item';
+        row.innerHTML = `
+          <div>
+            <div class="t">${esc(g.title)}</div>
+            <div class="c">${esc(g.category || '')}${g.subcategory ? ' › ' + esc(g.subcategory) : ''} · ${esc(g.platform || 'PC')}</div>
+          </div>
+          <a class="btn small" href="/api/games/${g.id}/download">Download</a>
+        `;
+        resultsEl.appendChild(row);
+      });
+      resultsEl.classList.add('show');
+    }
+
+    (async function init() {
+      const res = await fetch('/api/categories');
+      catData = await res.json();
+      const urlCat = new URLSearchParams(location.search).get('cat');
+      if (urlCat && CATS.includes(urlCat)) { currentCat = urlCat; }
+      renderCatNav();
+      renderSubRail();
+      loadGames();
+    })();
+  </script>
+</body>
+</html>
