@@ -150,7 +150,7 @@ app.post('/api/admin/games', requireAdmin, upload.fields([{ name: 'file', maxCou
     if (!cols.includes('download_url')) db.exec("ALTER TABLE games ADD COLUMN download_url TEXT");
 
     const imageUrl = imgFile ? `/api/image/${imgFile.filename}` : null;
-    const filename = gameFile ? gameFile.filename : null;
+    const filename = gameFile ? gameFile.filename : 'link';
     const originalName = gameFile ? gameFile.originalname : title;
     const sizeBytes = gameFile ? gameFile.size : 0;
 
