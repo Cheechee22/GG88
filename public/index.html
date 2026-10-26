@@ -27,6 +27,22 @@
     <div id="subRail" class="sub-rail"></div>
     <div id="games" class="grid"></div>
     <p id="empty" class="empty" style="display:none">No games found.</p>
+        <!-- Game Details Modal -->
+    <div id="gameModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:100; overflow-y:auto; padding: 2rem 1rem;">
+      <div style="background:white; max-width:800px; margin:0 auto; border-radius:18px; padding:1.5rem; position:relative;">
+        <button onclick="closeModal()" style="position:absolute; top:10px; right:15px; background:none; border:none; font-size:24px; cursor:pointer; color:#7c5cff;">&times;</button>
+        <img id="modalImage" style="width:100%; height:250px; object-fit:cover; border-radius:12px; margin-bottom:1rem; display:none;" />
+        <h2 id="modalTitle" style="margin-bottom:0.5rem;"></h2>
+        <span id="modalCategory" class="tag" style="margin-bottom: 1rem;"></span>
+        <p id="modalDescription" style="margin-bottom: 1rem; color:#5b4b8a;"></p>
+        <div id="modalInstallSection" style="background:#f7f3ff; padding:1rem; border-radius:12px; margin-bottom:1rem;">
+          <h4 style="color:#7c5cff; margin-bottom:0.5rem;">Installation Instructions</h4>
+          <p id="modalInstallation" style="white-space: pre-wrap; color:#5b4b8a; font-size:0.9rem;"></p>
+        </div>
+        <div id="modalScreenshots" style="display:flex; gap:10px; overflow-x:auto; margin-bottom:1.5rem;"></div>
+        <a id="modalDownloadBtn" class="btn" style="width:100%; display:block;">⬇ Download Now</a>
+      </div>
+    </div>
   </main>
 
   <script>
