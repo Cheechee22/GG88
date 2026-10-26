@@ -69,24 +69,27 @@
       const mb = b / (1024 * 1024);
       return mb > 1024 ? (mb / 1024).toFixed(2) + ' GB' : mb.toFixed(1) + ' MB';
     }
-
     function renderCard(g) {
       const card = document.createElement('div');
       card.className = 'card';
+      // Make the card clickable to open modal
+      card.onclick = () => openModal(g.id);
+      
+      const coverHtml = g.image_url 
+        ? `<img src="${g.image_url}" style="width:100%; height:160px; object-fit:cover; border-radius:10px; margin-bottom:10px;" />` 
+        : '';
+
       card.innerHTML = `
+        ${coverHtml}
         <h3>${esc(g.title)}</h3>
         <div>
           <span class="tag">${esc(g.category || 'Game')}</span>
-          ${g.subcategory ? `<span class="tag">${esc(g.subcategory)}</span>` : ''}
         </div>
-        <p class="meta">${esc(g.platform || 'PC')}${g.version ? ' · v' + esc(g.version) : ''}</p>
-        <p class="desc">${esc(g.description)}</p>
-        <p class="size">${fmtSize(g.size_bytes)} · ${g.downloads} downloads</p>
-        <a class="btn" href="/api/games/${g.id}/download">⬇ Download</a>
+        <p class="desc">${esc(g.description.substring(0, 80))}...</p>
       `;
       return card;
     }
-
+   
     function renderGames(list) {
       gamesEl.innerHTML = '';
       emptyEl.style.display = list.length ? 'none' : 'block';
