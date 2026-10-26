@@ -207,7 +207,51 @@
       renderCatNav();
       renderSubRail();
       loadGames();
-    })();
+    })();    // Modal Logic
+    async function openModal(id) {
+      const res = await fetch('/api/games/' + id);
+      const g = await res.json();
+      
+      document.getElementById('modalTitle').textContent = g.title;
+      document.getElementById('modalCategory').textContent = g.category;
+      document.getElementById('modalDescription').textContent = g.description;
+      
+      const imgEl = document.getElementById('modalImage');
+      if (g.image_url) {
+        imgEl.src = g.image_url;
+        imgEl.style.display = 'block';
+      } else {
+        imgEl.style.display = 'none';
+      }
+
+      const installSection = document.getElementById('modalInstallSection');
+      if (g.installation) {
+        document.getElementById('modalInstallation').textContent = g.installation;
+        installSection.style.display = 'block';
+      } else {
+        installSection.style.display = 'none';
+      }
+
+      const ssContainer = document.getElementById('modalScreenshots');
+      ssContainer.innerHTML = '';
+      if (g.screenshots) {
+        try {
+          const ssArray = JSON.parse(g.screenshots);
+          ssArray.forEach(url => {
+            ssContainer.innerHTML += `<img src="${url}" style="height:120px; border-radius:8px;" />`;
+          });
+        } catch(e) {}
+      }
+
+      document.getElementById('modalDownloadBtn').href = '/api/games/' + g.id + '/download';
+      document.getElementById('gameModal').style.display = 'block';
+      document.body.style.overflow = 'hidden'; // Stop background scrolling
+    }
+
+    function closeModal() {
+      document.getElementById('gameModal').style.display = 'none';
+      document.body.style.overflow = 'auto';
+    }
   </script>
 </body>
 </html>
