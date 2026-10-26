@@ -33,9 +33,13 @@ const upload = multer({
     }
   }),
   limits: { fileSize: MAX_MB * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
+    fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    if (!ALLOWED_EXT.has(ext)) return cb(new Error('File type not allowed'));
+    if (file.fieldname === 'image' || file.fieldname.startsWith('screenshot')) {
+      if (!ALLOWED_IMG.has(ext)) return cb(new Error('Image type not allowed'));
+    } else {
+      if (!ALLOWED_EXT.has(ext)) return cb(new Error('File type not allowed'));
+    }
     cb(null, true);
   }
 });
