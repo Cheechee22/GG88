@@ -8,13 +8,14 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const db = require('./db');
-
+const { createClient } = require('@supabase/supabase-js');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET;
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 const MAX_MB = parseInt(process.env.MAX_UPLOAD_MB || '2048', 10);
-
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+const R2_BUCKET_NAME = 'gg88-images'; // We are using this name for the Supabase bucket
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
 
 const CATEGORIES = ['Arcade', 'Racing', 'Sports', 'Indie', 'Horror', 'Simulation', 'RPG'];
@@ -23,15 +24,8 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 const ALLOWED_EXT = new Set(['.zip', '.rar', '.7z', '.exe', '.msi', '.dmg', '.tar', '.gz', '.apk', '.torrent']);
+storage: multer.memoryStorage(),
 
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-    filename: (req, file, cb) => {
-      const safe = crypto.randomBytes(16).toString('hex') + path.extname(file.originalname).toLowerCase();
-      cb(null, safe);
-    }
-  }),
   limits: { fileSize: MAX_MB * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
@@ -142,7 +136,7 @@ app.post('/api/admin/games', requireAdmin, upload.fields([
   { name: 'screenshot1', maxCount: 1 },
   { name: 'screenshot2', maxCount: 1 },
   { name: 'screenshot3', maxCount: 1 }
-]), (req, res) => {
+]), async (req, res) => {
   try {
     const { title, description, category, subcategory = '', platform = '', version = '', download_url = '', installation = '' } = req.body;
     
@@ -162,25 +156,52 @@ app.post('/api/admin/games', requireAdmin, upload.fields([
     if (!cols.includes('installation')) db.exec("ALTER TABLE games ADD COLUMN installation TEXT");
     if (!cols.includes('screenshots')) db.exec("ALTER TABLE games ADD COLUMN screenshots TEXT");
 
-    const imageUrl = imgFile ? `/api/image/${imgFile.filename}` : null;
-    const filename = gameFile ? gameFile.filename : 'link';
-    const originalName = gameFile ? gameFile.originalname : title;
-    const sizeBytes = gameFile ? gameFile.size : 0;
+    // Helper to upload a single file to Supabase
+    const uploadToSupabase = async (file) => {
+      if (!file) return null;
+      const fileName = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}${path.extname(file.originalname)}`;
+      
+      const { data, error } = await supabase.storage
+        .from(R2_BUCKET_NAME) // Your bucket name
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        });
 
+      if (error) throw error;
+
+      // Get public URL
+      const { data: publicUrlData } = supabase.storage
+        .from(R2_BUCKET_NAME)
+        .getPublicUrl(fileName);
+
+      return publicUrlData.publicUrl;
+    };
+
+    // Upload all files to Supabase
+    const imageUrl = await uploadToSupabase(imgFile);
+    const fileUrl = await uploadToSupabase(gameFile); 
+    
     const ssArray = [];
-    if (ss1) ssArray.push(`/api/image/${ss1.filename}`);
-    if (ss2) ssArray.push(`/api/image/${ss2.filename}`);
-    if (ss3) ssArray.push(`/api/image/${ss3.filename}`);
+    const s1 = await uploadToSupabase(ss1); if (s1) ssArray.push(s1);
+    const s2 = await uploadToSupabase(ss2); if (s2) ssArray.push(s2);
+    const s3 = await uploadToSupabase(ss3); if (s3) ssArray.push(s3);
+    
     const screenshotsJson = JSON.stringify(ssArray);
 
+    // Save to Database
     const info = db.prepare(`
       INSERT INTO games (title, description, category, subcategory, platform, version, size_bytes, filename, original_name, image_url, download_url, installation, screenshots)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(title, description, category, subcategory, platform, version,
-           sizeBytes, filename, originalName, imageUrl, download_url, installation, screenshotsJson);
+           gameFile ? gameFile.size : 0, 
+           fileUrl || 'link', 
+           gameFile ? gameFile.originalname : title, 
+           imageUrl, download_url, installation, screenshotsJson);
            
     res.json({ id: info.lastInsertRowid, message: 'Game uploaded' });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
