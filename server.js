@@ -24,10 +24,10 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 const ALLOWED_EXT = new Set(['.zip', '.rar', '.7z', '.exe', '.msi', '.dmg', '.tar', '.gz', '.apk', '.torrent']);
-storage: multer.memoryStorage(),
-
+const upload = multer({
+  storage: multer.memoryStorage(),
   limits: { fileSize: MAX_MB * 1024 * 1024 },
-    fileFilter: (req, file, cb) => {
+  fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     if (file.fieldname === 'image' || file.fieldname.startsWith('screenshot')) {
       if (!ALLOWED_IMG.has(ext)) return cb(new Error('Image type not allowed'));
@@ -37,7 +37,6 @@ storage: multer.memoryStorage(),
     cb(null, true);
   }
 });
-
 function requireAdmin(req, res, next) {
   const auth = req.headers.authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
