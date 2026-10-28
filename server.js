@@ -8,13 +8,13 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const db = require('./db');
-const { createClient } = require('@supabase/supabase-js');
+const { createSmartClient } = require('supadns-js');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET;
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 const MAX_MB = parseInt(process.env.MAX_UPLOAD_MB || '2048', 10);
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+const supabase = createSmartClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 const R2_BUCKET_NAME = 'gg88-images'; // We are using this name for the Supabase bucket
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
 
