@@ -24,6 +24,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 const ALLOWED_EXT = new Set(['.zip', '.rar', '.7z', '.exe', '.msi', '.dmg', '.tar', '.gz', '.apk', '.torrent']);
+const ALLOWED_IMG = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_MB * 1024 * 1024 },
